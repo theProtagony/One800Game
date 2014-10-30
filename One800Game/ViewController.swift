@@ -20,6 +20,8 @@ class ViewController: UIViewController {
     
     @IBOutlet var flash : UIView?
     
+    @IBOutlet var timer : UIProgressView?
+    
     var score = 0;
     var currentNumber = "";
     var currentInput = "";
@@ -27,6 +29,9 @@ class ViewController: UIViewController {
     var firstLoad = true;
     
     var touchToneIDs: [SystemSoundID]!
+    
+    var functionTimer : NSTimer?
+    var dialTime:Float = 1.0;
     
 
     override func viewDidLoad() {
@@ -59,23 +64,26 @@ class ViewController: UIViewController {
         
         if(currentNumber == currentInput) {
             onScore()
+            newNumber()
+            setCurrentInput("")
+        }
+        else {
+            onGameOver();
         }
         
-        newNumber()
-        setCurrentInput("")
     }
     
     func onScore()
     {
         setScore(score+1)
         
-        self.flash?.alpha = 1.0;
+  //      self.flash?.alpha = 1.0;
         let time :Double = 1;
         
         
         UIView.animateWithDuration(1.0, animations: {
             
-            self.flash!.alpha = 0.0
+//            self.flash!.alpha = 0.0
         })
     }
     
@@ -96,18 +104,41 @@ class ViewController: UIViewController {
         }
         else
         {
-            var attributedString = NSMutableAttributedString(string:currentNumber)
-            attributedString.addAttribute(NSForegroundColorAttributeName, value: UIColor(red: 0.0, green: 0.7, blue: 0.0, alpha: 1.0) , range: range)
-
-            txtCurrentNum?.attributedText = attributedString;
+            updateNumericDisplay()
         }
         
     }
     
+    func decorateString(str : NSString) -> NSString {
+        
+        if(str.length <= 1) {
+            return NSString(string: str)
+        } else if( str.length <= 4) {
+            return "\(str.substringToIndex(1)) (\(str.substringWithRange(NSRange(location:1, length:str.length-1)))"
+        } else if (str.length <= 7) {
+            return "\(str.substringToIndex(1)) (\(str.substringWithRange(NSRange(location:1, length:3)))) \(str.substringWithRange(NSRange(location:4, length:str.length-4)))"
+        } else {
+            return "\(str.substringToIndex(1)) (\(str.substringWithRange(NSRange(location:1, length:3)))) \(str.substringWithRange(NSRange(location:4, length:3)))-\(str.substringWithRange(NSRange(location:7, length:str.length-7)))"
+        }
+        
+    }
+    
+    func updateNumericDisplay() {
+        
+        var range = (decorateString(currentNumber) as NSString).rangeOfString(decorateString(currentInput))
+
+
+        var attributedString = NSMutableAttributedString(string:decorateString(currentNumber))
+        attributedString.addAttribute(NSForegroundColorAttributeName, value: UIColor(red: 0.0, green: 0.7, blue: 0.0, alpha: 1.0) , range: range)
+        
+        txtCurrentNum?.attributedText = attributedString;
+
+    }
+    
     func newNumber() {
         
-        var result = "";
-        let length = min(score/3 + 4, 10);
+        var result = "1800"
+        let length = 7
         
         for index in 1...length {
             let digit = arc4random_uniform(10);
@@ -116,18 +147,39 @@ class ViewController: UIViewController {
         
         setCurrentNumber(result);
         
-        txtCurrentNum?.alpha = 1;
-        
-        UIView.animateWithDuration(5.0, animations: {
-            self.txtCurrentNum!.alpha = 0
-        })
-
+        timer?.progress = 1
+        dialTime = 1
+        if(functionTimer != nil) {
+            functionTimer?.invalidate()
+        }
+        functionTimer = NSTimer(timeInterval: 1.0/30.0, target: self, selector: Selector("updateProgressBar"), userInfo: nil, repeats: true)
+        NSRunLoop.currentRunLoop().addTimer(functionTimer!, forMode: NSRunLoopCommonModes)
     }
+    
+    func updateProgressBar() {
+        
+        if(dialTime <= 0.0)
+        {
+            //Invalidate timer when time reaches 0
+            functionTimer?.invalidate()
+            functionTimer = nil
+            onGameOver();
+        }
+        else
+        {
+            dialTime -= 1.0/30.0/10.0;
+            timer?.progress = dialTime;
+        }
+        
+    }
+    
+   
     
     func setCurrentNumber(newNumber : NSString)
     {
         currentNumber = newNumber;
-        txtCurrentNum?.text = currentNumber;
+        
+        updateNumericDisplay()
         
     }
     
@@ -145,11 +197,7 @@ class ViewController: UIViewController {
     
     func onGameOver()
     {
-        
-        
         self.performSegueWithIdentifier("GameOverSegue", sender: self)
-
-
     }
     
     func onNewGame()
